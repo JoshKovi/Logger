@@ -34,7 +34,7 @@ public class LoggerImpl implements Logger {
         private String getStackTraceAsString(Exception e){
             return Arrays.stream(e.getStackTrace())
                     .map(StackTraceElement::toString)
-                    .collect(Collectors.joining("\t||\t"));
+                    .collect(Collectors.joining("\t\t;;;\t\t"));
         }
     }
 
