@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
@@ -34,13 +35,17 @@ public class LoggerImpl implements Logger {
         private String getStackTraceAsString(Exception e){
             return Arrays.stream(e.getStackTrace())
                     .map(StackTraceElement::toString)
-                    .collect(Collectors.joining("\t\t;;;\t\t"));
+                    .collect(Collectors.joining(LINE_DELIMITER));
         }
     }
 
-    private static final String LOG_HEADER = "Time\t|\tDate\t|\tType\t|\tMessage\t|\tExceptionMessage\t|\tStackTrace\n";
-    private static final String LOG = "%s\t|\t%s\t|\t%s\t|\t%s\t|\t \t|\t %n";
-    private static final String EXCEPTION = "%s\t|\t%s\t|\t%s\t|\t%s\t|\t%s\t|\t%s%n";
+    private static final String COLUMN_DELIMITER = "\t;;\t";
+    private static final String LINE_DELIMITER = "\t;;;\t";
+
+    private static final String LOG_HEADER = String.join(COLUMN_DELIMITER,
+            List.of("Time","Date","Type","Message","ExceptionMessage","StackTrace\n"));
+    private static final String LOG = String.join(COLUMN_DELIMITER,List.of("%s","%s","%s","%s"," "," %n"));
+    private static final String EXCEPTION = String.join(COLUMN_DELIMITER,List.of("%s","%s","%s","%s","%s","%s%n"));
 
     private final File logFile;
     private final String shortName;
@@ -99,6 +104,16 @@ public class LoggerImpl implements Logger {
                 logFile.getAbsolutePath().replaceAll("\\\\", "/"),
                 shortName
         );
+    }
+
+    @Override
+    public String getLineDelimiter() {
+        return LINE_DELIMITER;
+    }
+
+    @Override
+    public String getColumnDelimiter() {
+        return COLUMN_DELIMITER;
     }
 
     @Override

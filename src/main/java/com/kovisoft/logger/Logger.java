@@ -6,7 +6,8 @@ import com.kovisoft.loggerImpl.LoggerImpl;
 public interface Logger {
 
 
-
+    String getLineDelimiter();
+    String getColumnDelimiter();
     LogMethods error();
     LogMethods log();
     LogMethods exception();
