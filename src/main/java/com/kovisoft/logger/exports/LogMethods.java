@@ -1,4 +1,4 @@
-package com.kovisoft.logger;
+package com.kovisoft.logger.exports;
 
 public interface LogMethods {
     void log(String logMessage);

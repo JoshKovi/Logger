@@ -1,66 +1,46 @@
-package com.kovisoft.loggerImpl;
+package com.kovisoft.logger.loggerImpl;
 
-import com.kovisoft.config.LoggerConfig;
-import com.kovisoft.logger.LogMethods;
-import com.kovisoft.logger.Logger;
+import com.kovisoft.logger.config.LoggerConfig;
+import com.kovisoft.logger.exports.Logger;
 
 import java.io.*;
 import java.nio.file.Files;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.Arrays;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.stream.Collectors;
 
-public class LoggerImpl implements Logger {
+public class LoggerImpl extends Logger {
 
-    private abstract class LoggerMethods implements LogMethods {
-        public abstract void log(String logMessage);
-        public abstract void log(String logMessage, Exception e);
-        protected void log(String type, String logMessage){
-            LocalDateTime timeStamp = LocalDateTime.now(ZoneId.of("America/New_York"));
-            queue.add(String.format(LOG, timeStamp.toLocalTime().toString(),
-                    timeStamp.toLocalDate().toString(), type, logMessage));
-        }
+    public static final String COLUMN_DELIMITER = "\t;;\t";
+    public static final String LINE_DELIMITER = "\t;;;\t";
 
-        protected void log(String type, String logMessage, Exception e){
-            LocalDateTime timeStamp = LocalDateTime.now(ZoneId.of("America/New_York"));
-            queue.add(String.format(EXCEPTION, timeStamp.toLocalTime().toString(),
-                    timeStamp.toLocalDate().toString(), type, logMessage, e.getMessage(),
-                    getStackTraceAsString(e)));
-        }
-
-        private String getStackTraceAsString(Exception e){
-            return Arrays.stream(e.getStackTrace())
-                    .map(StackTraceElement::toString)
-                    .collect(Collectors.joining(LINE_DELIMITER));
-        }
-    }
-
-    private static final String COLUMN_DELIMITER = "\t;;\t";
-    private static final String LINE_DELIMITER = "\t;;;\t";
-
-    private static final String LOG_HEADER = String.join(COLUMN_DELIMITER,
+    protected static final String LOG_HEADER = String.join(COLUMN_DELIMITER,
             List.of("Time","Date","Type","Message","ExceptionMessage","StackTrace\n"));
-    private static final String LOG = String.join(COLUMN_DELIMITER,List.of("%s","%s","%s","%s"," "," %n"));
-    private static final String EXCEPTION = String.join(COLUMN_DELIMITER,List.of("%s","%s","%s","%s","%s","%s%n"));
+    protected static final String LOG = String.join(COLUMN_DELIMITER,
+            List.of("%s","%s","%s","%s"," "," %n"));
+    protected static final String EXCEPTION = String.join(COLUMN_DELIMITER,
+            List.of("%s","%s","%s","%s","%s","%s%n"));
+
+    private final BlockingQueue<String> queue = new LinkedBlockingQueue<>();
 
     private final File logFile;
+    private final LocalDate date;
     private final String shortName;
-    private final BlockingQueue<String> queue = new LinkedBlockingQueue<>();
+    private final int daysToLog;
+
     private final Thread loggerThread;
     private volatile boolean running = true;
 
-    private final Error error = new Error();
-    private final Log log = new Log();
-    private final Except exception = new Except();
-    private final Info info = new Info();
-
-    public LoggerImpl(LoggerConfig config, String shortName){
+    public LoggerImpl(LoggerConfig config){
+        this.error = new Error(queue);
+        this.except = new Except(queue);
+        this.log = new Log(queue);
+        this.info = new Info(queue);
+        this.date = config.getDate();
+        this.daysToLog = config.getDaysToLog();
+        this.shortName = config.getShortName();
         logFile = config.getLogFile();
-        this.shortName = shortName;
         loggerThread = new Thread(() ->{
             try{
                 while(running || !queue.isEmpty()){
@@ -90,6 +70,7 @@ public class LoggerImpl implements Logger {
 
         } catch (IOException | InterruptedException e) {
             System.out.println("Failed to write to output!");
+            throw new RuntimeException(e);
         }
     }
 
@@ -100,10 +81,26 @@ public class LoggerImpl implements Logger {
     public void stopRunning(){
         running = false;
         loggerThread.interrupt();
-        Logger.removeLogger(
-                logFile.getAbsolutePath().replaceAll("\\\\", "/"),
-                shortName
-        );
+    }
+
+    @Override
+    public boolean needNewLog() {
+        return date.plusDays(daysToLog).isBefore(LocalDate.now());
+    }
+
+    @Override
+    public String getShortName(){
+        return shortName;
+    }
+
+    @Override
+    public int getDaysToLog(){
+        return daysToLog;
+    }
+
+    @Override
+    public File getFile(){
+        return logFile;
     }
 
     @Override
@@ -117,28 +114,49 @@ public class LoggerImpl implements Logger {
     }
 
     @Override
-    public LogMethods error() {
-        return error;
+    public void error(String logMessage) {
+        error.log(logMessage);
     }
 
     @Override
-    public LogMethods log() {
-        return log;
+    public void error(String logMessage, Exception e) {
+        error.log(logMessage, e);
     }
 
     @Override
-    public LogMethods exception() {
-        return exception;
+    public void except(String logMessage) {
+        except.log(logMessage);
     }
 
     @Override
-    public LogMethods info() {
-        return info;
+    public void except(String logMessage, Exception e) {
+        except.log(logMessage, e);
+    }
+
+    @Override
+    public void log(String logMessage) {
+        log.log(logMessage);
+    }
+
+    @Override
+    public void log(String logMessage, Exception e) {
+        log.log(logMessage, e);
+    }
+
+    @Override
+    public void info(String logMessage) {
+        info.log(logMessage);
+    }
+
+    @Override
+    public void info(String logMessage, Exception e) {
+        info.log(logMessage, e);
     }
 
 
-    public class Error extends LoggerMethods{
+    private static class Error extends LoggerMethods{
         private static final String TYPE = "Error";
+        Error(BlockingQueue<String> queue) {super(queue);}
         @Override
         public void log(String logMessage) {
             this.log(TYPE, logMessage);
@@ -149,8 +167,9 @@ public class LoggerImpl implements Logger {
         }
     }
 
-    public class Log extends LoggerMethods{
+    private static class Log extends LoggerMethods{
         private static final String TYPE = "Log";
+        Log(BlockingQueue<String> queue) {super(queue);}
         @Override
         public void log(String logMessage) {
             this.log(TYPE, logMessage);
@@ -160,8 +179,9 @@ public class LoggerImpl implements Logger {
             this.log(TYPE, logMessage, e);
         }
     }
-    public class Except extends LoggerMethods{
+    private static class Except extends LoggerMethods{
         private static final String TYPE = "Exception";
+        Except(BlockingQueue<String> queue) {super(queue);}
         @Override
         public void log(String logMessage) {
             this.log(TYPE, logMessage);
@@ -171,8 +191,9 @@ public class LoggerImpl implements Logger {
             this.log(TYPE, logMessage, e);
         }
     }
-    public class Info extends LoggerMethods{
+    private static class Info extends LoggerMethods{
         private static final String TYPE = "Info";
+        Info(BlockingQueue<String> queue) {super(queue);}
         @Override
         public void log(String logMessage) {
             this.log(TYPE, logMessage);
