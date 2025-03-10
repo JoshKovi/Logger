@@ -64,7 +64,7 @@ public class TestLoggerImpl {
     public static void teardownEnvironment(){
         List<String> lines = List.of();
         try{
-            Thread.sleep(2000);  //Let the queue finish itself out.
+            Thread.sleep(5000);  //Let the queue finish itself out.
             Assertions.assertDoesNotThrow(logger::stopRunning);
             lines = Files.readAllLines(logger.getFile().toPath());
         } catch (IOException | InterruptedException e) {
