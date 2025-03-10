@@ -26,6 +26,7 @@ public class LoggerConfig {
     }
     public LoggerConfig(String outputPath) throws RuntimeException{
         int lastIndex = outputPath.lastIndexOf('/');
+        lastIndex = (lastIndex == -1) ? outputPath.lastIndexOf('\\') : lastIndex;
         OUTPUT_DIRECTORY = outputPath.substring(0, lastIndex);
         this.shortName = outputPath.substring(lastIndex + 1);
         OUTPUT_FILE = getFileName();
