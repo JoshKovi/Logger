@@ -23,7 +23,6 @@ public class LoggerImpl extends Logger {
             List.of("%s","%s","%s","%s","%s","%s%n"));
 
     private final BlockingQueue<String> queue = new LinkedBlockingQueue<>();
-    private BufferedWriter bw;
 
     private final File logFile;
     private final LocalDate date;
@@ -32,7 +31,6 @@ public class LoggerImpl extends Logger {
 
     private final Thread loggerThread;
     private volatile boolean running = true;
-    private Logger logger;
 
     public LoggerImpl(LoggerConfig config) {
         this.error = new Error(queue);
@@ -45,70 +43,45 @@ public class LoggerImpl extends Logger {
         logFile = config.getLogFile();
         loggerThread = new Thread(() ->{
             try{
-                this.openWrite();
                 while(running || !queue.isEmpty()){
-                    String message = queue.poll();
-                    if(message != null){
-                        writeLog(message);
-                    } else {
-                        Thread.sleep(10);
-                    }
+                    String message = queue.take();
+                    writeLog(message);
                 }
-            } catch (InterruptedException | IOException e) {
+            } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                if(logger == null){
-                    System.out.println("Logger thread interrupted. " + logFile.getName());
-                } else {
-                    logger.except("Logger thread interrupted. " + logFile.getName());
-                }
+                System.out.println("Logger thread interrupted. " + logFile.getName());
             }
         });
         loggerThread.start();
     }
 
     private void writeLog(String message){
-        try{
-            bw.write(message);
-        } catch (IOException e) {
-            if(logger == null){
-                System.out.println("Failed to write to output!" + e.getMessage());
-            } else {
-                logger.except("Failed to write to output!", e);
+        try(BufferedWriter bw = new BufferedWriter(new FileWriter(logFile, true))){
+            if(isEmptyFile()){
+                bw.write(LOG_HEADER);
             }
-            throw new RuntimeException(e);
+            String outputMessage = message;
+            do{
+                bw.write(outputMessage);
+                if(!queue.isEmpty()){
+                    outputMessage = queue.take();
+                }
+            } while(!queue.isEmpty());
+
+        } catch (IOException | InterruptedException e) {
+            System.out.println("Failed to write to output!" + e.getMessage());
         }
     }
 
-    private void openWrite() throws IOException {
-        bw = new BufferedWriter(new FileWriter(logFile, true));
-        if(Files.size(logFile.toPath()) == 0){
-            bw.write(LOG_HEADER);
-        }
+    private boolean isEmptyFile() throws IOException {
+        return Files.size(logFile.toPath()) == 0;
     }
+
+
 
     public void stopRunning(){
         running = false;
-        try{
-            loggerThread.join();
-            bw.close();
-        } catch (InterruptedException e){
-            Thread.currentThread().interrupt();
-            if(logger == null){
-                System.out.println("Main thread interrupted while waiting for logger thread to finish." + e.getMessage());
-            } else {
-                logger.except("Main thread interrupted while waiting for logger thread to finish.", e);
-            }
-        } catch (IOException e) {
-            if(logger == null){
-                System.out.println("Error occured while closing buffered writer!" + e.getMessage());
-            } else {
-                logger.except("Error occured while closing buffered writer!", e);
-            }
-        }
-    }
-
-    public void setLogger(Logger logger){
-        this.logger = logger;
+        loggerThread.interrupt();
     }
 
     @Override

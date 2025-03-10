@@ -20,6 +20,5 @@ public interface LoggerInterface {
     String getShortName();
     int getDaysToLog();
     File getFile();
-    void setLogger(Logger logger);
 
 }

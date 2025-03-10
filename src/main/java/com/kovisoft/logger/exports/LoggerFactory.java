@@ -10,10 +10,6 @@ public class LoggerFactory {
         return LogManagerImpl.getInstance();
     }
 
-    public static LogManager getLogManager(String overideLogDirPath){
-        return LogManagerImpl.getInstance(overideLogDirPath);
-    }
-
     public static Logger createLogger(String outputDir, String shortName){
         LogManager lm = getLogManager();
         if(lm.doesLoggerExist(shortName)) return lm.getLogger(shortName);
