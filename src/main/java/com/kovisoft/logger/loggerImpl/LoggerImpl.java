@@ -37,6 +37,7 @@ public class LoggerImpl extends Logger {
         this.except = new Except(queue);
         this.log = new Log(queue);
         this.info = new Info(queue);
+        this.warn = new Warn(queue);
         this.date = config.getDate();
         this.daysToLog = config.getDaysToLog();
         this.shortName = config.getShortName();
@@ -135,6 +136,16 @@ public class LoggerImpl extends Logger {
     }
 
     @Override
+    public void warn(String logMessage) {
+        warn.log(logMessage);
+    }
+
+    @Override
+    public void warn(String logMessage, Exception e) {
+        warn.log(logMessage, e);
+    }
+
+    @Override
     public void log(String logMessage) {
         log.log(logMessage);
     }
@@ -152,6 +163,19 @@ public class LoggerImpl extends Logger {
     @Override
     public void info(String logMessage, Exception e) {
         info.log(logMessage, e);
+    }
+
+    private static class Warn extends LoggerMethods{
+        private static final String TYPE = "Warn";
+        Warn(BlockingQueue<String> queue) {super(queue);}
+        @Override
+        public void log(String logMessage) {
+            this.log(TYPE, logMessage);
+        }
+        @Override
+        public void log(String logMessage, Exception e) {
+            this.log(TYPE, logMessage, e);
+        }
     }
 
 

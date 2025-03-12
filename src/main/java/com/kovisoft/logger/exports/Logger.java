@@ -5,5 +5,6 @@ public abstract class Logger implements LoggerInterface {
     public LogMethods log;
     public LogMethods info;
     public LogMethods except;
+    public LogMethods warn;
 
 }
