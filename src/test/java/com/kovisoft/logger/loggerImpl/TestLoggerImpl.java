@@ -206,4 +206,28 @@ public class TestLoggerImpl {
                 e.getMessage(), getStackTraceAsString(e)));
     }
 
+    @Test
+    @Order(9)
+    public void test_warn(){
+        String test = "Logging Warn with no Exception present";
+        Assertions.assertDoesNotThrow(()->{
+            logger.warn(test);
+        });
+        LocalDateTime timeStamp = LocalDateTime.now(ZoneId.of("America/New_York"));
+        logged.add(String.format(LOG, timeStamp.toLocalTime(), timeStamp.toLocalDate(), "Warn", test));
+    }
+
+    @Test
+    @Order(10)
+    public void test_warn_e(){
+        String test = "Logging Warn with Exception present";
+        Exception e = new Exception("Here is a Warn Exception!");
+        Assertions.assertDoesNotThrow(()->{
+            logger.warn(test, e);
+        });
+        LocalDateTime timeStamp = LocalDateTime.now(ZoneId.of("America/New_York"));
+        logged.add(String.format(EXCEPTION, timeStamp.toLocalTime(), timeStamp.toLocalDate(), "Warn", test,
+                e.getMessage(), getStackTraceAsString(e)));
+    }
+
 }

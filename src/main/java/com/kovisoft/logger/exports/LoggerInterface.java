@@ -11,6 +11,8 @@ public interface LoggerInterface {
     void error(String logMessage, Exception e);
     void except(String logMessage);
     void except(String logMessage, Exception e);
+    void warn(String logMessage);
+    void warn(String logMessage, Exception e);
     void log(String logMessage);
     void log(String logMessage, Exception e);
     void info(String logMessage);
