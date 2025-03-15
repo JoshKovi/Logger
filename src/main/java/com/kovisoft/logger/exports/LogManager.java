@@ -1,6 +1,7 @@
 package com.kovisoft.logger.exports;
 
 
+
 public interface LogManager {
 
     /**
@@ -13,7 +14,8 @@ public interface LogManager {
     Logger getLogger(String shortName);
     Logger getLoggerByPath(String logPath);
     Logger addLogger(Logger logger);
-    void deleteLogger(Logger logger);
-    void deleteLoggerByName(String shortName);
-    void deleteLoggerByPath(String logPath);
+    void removeLogger(Logger logger);
+    void removeLoggerByName(String shortName);
+    void removeLoggerByPath(String logPath);
+    void stopRunning();
 }

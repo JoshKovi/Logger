@@ -4,13 +4,19 @@ import com.kovisoft.logger.config.LoggerConfig;
 import com.kovisoft.logger.loggerImpl.LogManagerImpl;
 import com.kovisoft.logger.loggerImpl.LoggerImpl;
 
+import java.io.IOException;
+
 public class LoggerFactory {
 
     public static LogManager getLogManager(){
         return LogManagerImpl.getInstance();
     }
 
-    public static Logger createLogger(String outputDir, String shortName){
+    public static void shutdownManager(){
+        getLogManager().stopRunning();
+    }
+
+    public static Logger createLogger(String outputDir, String shortName) throws IOException {
         LogManager lm = getLogManager();
         if(lm.doesLoggerExist(shortName)) return lm.getLogger(shortName);
 
@@ -19,7 +25,7 @@ public class LoggerFactory {
         return lm.addLogger(logger);
     }
 
-    public static Logger createLogger(String outputDir, String shortName, int daysToLog){
+    public static Logger createLogger(String outputDir, String shortName, int daysToLog) throws IOException {
         LogManager lm = getLogManager();
         if(lm.doesLoggerExist(shortName)) return lm.getLogger(shortName);
 

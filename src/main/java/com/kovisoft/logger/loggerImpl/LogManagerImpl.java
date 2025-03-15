@@ -4,10 +4,11 @@ import com.kovisoft.logger.config.LoggerConfig;
 import com.kovisoft.logger.exports.LogManager;
 import com.kovisoft.logger.exports.Logger;
 
-import java.nio.file.Paths;
+import java.io.IOException;
 import java.util.HashMap;
+import java.util.Map;
 
-public class LogManagerImpl implements LogManager {
+public class LogManagerImpl implements LogManager, AutoCloseable {
 
     protected final HashMap<String, Logger> activeLoggers;
     protected static LogManagerImpl lm;
@@ -39,13 +40,13 @@ public class LogManagerImpl implements LogManager {
      * @param shortName The short name (file name without extension)
      * @return The existing logger or the refreshed Logger.
      */
-    public Logger getLogger(String shortName){
+    public Logger getLogger(String shortName) {
         if(shortName.endsWith(".log")) shortName = shortName.substring(0, shortName.length()-4);
         Logger logger = activeLoggers.get(shortName);
         if(logger == null){ return null;}
         if(logger.needNewLog()){
             LoggerConfig config = new LoggerConfig(logger.getFile().getParent(), shortName, logger.getDaysToLog());
-            return replaceLogger(logger, config);
+            return tryReplaceLogger(logger, config);
         } else {
             return logger;
         }
@@ -61,21 +62,22 @@ public class LogManagerImpl implements LogManager {
     public Logger getLoggerByPath(String logPath) {
         if(logPath.endsWith(".log")) logPath = logPath.substring(0, logPath.length()-4);
         Logger logger = activeLoggers.get(logPath);
-        if(logger == null){
-            LoggerConfig config = new LoggerConfig(logPath);
-            logger = new LoggerImpl(config);
-            return addLogger(logger);
-        } else if(logger.needNewLog()){
+        if(logger == null){ return null;}
+        if(logger.needNewLog()){
             LoggerConfig config = new LoggerConfig(logPath, logger.getDaysToLog());
-            return replaceLogger(logger, config);
+            return tryReplaceLogger(logger, config);
         } else {
             return logger;
         }
     }
 
-    private Logger replaceLogger(Logger logger, LoggerConfig config){
-        deleteLogger(logger);
-        logger = new LoggerImpl(config);
+    private Logger tryReplaceLogger(Logger logger, LoggerConfig config) {
+        try{
+            logger = new LoggerImpl(config);
+        } catch (IOException e) {
+            System.out.println("Unable to instantiate new log this time, keep using old for now. " + e.getMessage());
+        }
+        removeLogger(logger);
         return addLogger(logger);
     }
 
@@ -88,22 +90,50 @@ public class LogManagerImpl implements LogManager {
     }
 
     @Override
-    public void deleteLogger(Logger logger) {
+    public void removeLogger(Logger logger) {
         String directory = logger.getFile().getParent() + "/" + logger.getShortName();
         activeLoggers.remove(directory);
         activeLoggers.remove(directory + ".log"); //doesn't hurt to check it.
         activeLoggers.remove(logger.getShortName());
-        logger.stopRunning();
+        try{
+            logger.stopRunning();
+        } catch (Exception e){
+            System.out.printf("Logger %s could not be gracefully shutdown.%n", logger.getShortName());
+            logger = null;
+        }
+
     }
 
     @Override
-    public void deleteLoggerByName(String shortName) {
-        deleteLogger(activeLoggers.get(shortName));
+    public void removeLoggerByName(String shortName) {
+        removeLogger(activeLoggers.get(shortName));
     }
 
     @Override
-    public void deleteLoggerByPath(String logPath) {
-        deleteLogger(activeLoggers.get(logPath));
+    public void removeLoggerByPath(String logPath) {
+        removeLogger(activeLoggers.get(logPath));
     }
 
+    @Override
+    public void stopRunning(){
+        for(Map.Entry<String, Logger> lEntry : activeLoggers.entrySet()){
+            try{
+                lEntry.getValue().stopRunning();
+            } catch (Exception e){
+                System.out.println("Exception thrown while attempting to stop logger." + e.getMessage());
+                lEntry = null;
+            }
+        }
+    }
+
+    @Override
+    public void close() {
+        for(Map.Entry<String, Logger> lEntry : activeLoggers.entrySet()){
+            try{
+                ((LoggerImpl)lEntry.getValue()).close();
+            } catch (Exception e){
+                System.out.println("Exception thrown while attempting to close logger." + e.getMessage());
+            }
+        }
+    }
 }

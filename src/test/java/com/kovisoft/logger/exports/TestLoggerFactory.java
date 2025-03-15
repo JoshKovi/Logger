@@ -10,7 +10,6 @@ import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.util.Comparator;
-import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -40,7 +39,9 @@ public class TestLoggerFactory {
     public static void teardownEnviroment(){
         assertDoesNotThrow(()->{
             deleteDirectory(dirPath);
+            LoggerFactory.shutdownManager();
         });
+
     }
 
     public static void deleteDirectory(Path path) throws IOException {
@@ -61,58 +62,58 @@ public class TestLoggerFactory {
     }
 
     @Test
-    public void test_createLogger_2inputs_shortname(){
+    public void test_createLogger_2inputs_shortname() throws IOException {
         String shortName = "log" +random.nextLong(10000, 10000000);
         assertDoesNotThrow(()->{LoggerFactory.createLogger(dirPath.toString(), shortName);});
         Assertions.assertTrue(Files.exists(dirPath));
-        Path filePath = Paths.get(dirPath.toString(), shortName + date.toString() + ".log");
+        Path filePath = Paths.get(dirPath.toString(), shortName + date + ".log");
         Assertions.assertTrue(Files.exists(filePath));
         Logger logger = LoggerFactory.createLogger(userdir + outputDir, shortName);
         assertNotNull(logger);
-        assertDoesNotThrow(()->{LoggerFactory.getLogManager().deleteLogger(logger);});
+        assertDoesNotThrow(()->{LoggerFactory.getLogManager().removeLogger(logger);});
     }
 
     @Test
-    public void test_createLogger_2inputs_filename(){
+    public void test_createLogger_2inputs_filename() throws IOException {
         String fileName = "log" + +random.nextLong(10000, 10000000);
         assertDoesNotThrow(()->{LoggerFactory.createLogger(dirPath.toString(), fileName+ ".log");});
         Assertions.assertTrue(Files.exists(dirPath));
-        Path filePath = Paths.get(dirPath.toString(), fileName + date.toString() + ".log");
-        System.out.println(filePath.toString());
+        Path filePath = Paths.get(dirPath.toString(), fileName + date + ".log");
+        System.out.println(filePath);
         Assertions.assertTrue(Files.exists(filePath));
         Logger logger = LoggerFactory.createLogger(userdir + outputDir, fileName);
         assertNotNull(logger);
-        assertDoesNotThrow(()->{LoggerFactory.getLogManager().deleteLogger(logger);});
+        assertDoesNotThrow(()->{LoggerFactory.getLogManager().removeLogger(logger);});
     }
 
     @Test
-    public void test_createLogger_3inputs_shortname(){
+    public void test_createLogger_3inputs_shortname() throws IOException {
         String shortname = "log" + +random.nextLong(10000, 10000000);
         int daysToLog = 5;
         assertDoesNotThrow(()->{LoggerFactory.createLogger(dirPath.toString(), shortname, daysToLog);});
         Assertions.assertTrue(Files.exists(dirPath));
-        Path filePath = Paths.get(dirPath.toString(), shortname + date.toString() + ".log");
-        System.out.println(filePath.toString());
+        Path filePath = Paths.get(dirPath.toString(), shortname + date + ".log");
+        System.out.println(filePath);
         Assertions.assertTrue(Files.exists(filePath));
         Logger logger = LoggerFactory.createLogger(userdir + outputDir, shortname);
         assertNotNull(logger);
         assertEquals(daysToLog, logger.getDaysToLog());
-        assertDoesNotThrow(()->{LoggerFactory.getLogManager().deleteLogger(logger);});
+        assertDoesNotThrow(()->{LoggerFactory.getLogManager().removeLogger(logger);});
     }
 
     @Test
-    public void test_createLogger_3inputs_filename(){
+    public void test_createLogger_3inputs_filename() throws IOException {
         String fileName = "log" + +random.nextLong(10000, 10000000);
         int daysToLog = 5;
         assertDoesNotThrow(()->{LoggerFactory.createLogger(dirPath.toString(), fileName+ ".log", daysToLog);});
         Assertions.assertTrue(Files.exists(dirPath));
-        Path filePath = Paths.get(dirPath.toString(), fileName + date.toString() + ".log");
-        System.out.println(filePath.toString());
+        Path filePath = Paths.get(dirPath.toString(), fileName + date + ".log");
+        System.out.println(filePath);
         Assertions.assertTrue(Files.exists(filePath));
         Logger logger = LoggerFactory.createLogger(userdir + outputDir, fileName);
         assertNotNull(logger);
         assertEquals(daysToLog, logger.getDaysToLog());
-        assertDoesNotThrow(()->{LoggerFactory.getLogManager().deleteLogger(logger);});
+        assertDoesNotThrow(()->{LoggerFactory.getLogManager().removeLogger(logger);});
     }
 
     @Test
@@ -120,11 +121,11 @@ public class TestLoggerFactory {
         String shortName = "log" +random.nextLong(10000, 10000000);
         assertDoesNotThrow(()->{LoggerFactory.createLogger(dirPath.toString(), shortName);});
         Assertions.assertTrue(Files.exists(dirPath));
-        Path filePath = Paths.get(dirPath.toString(), shortName + date.toString() + ".log");
+        Path filePath = Paths.get(dirPath.toString(), shortName + date + ".log");
         Assertions.assertTrue(Files.exists(filePath));
         assertNotNull(LoggerFactory.getLogger(shortName));
         assertDoesNotThrow(()->{LoggerFactory.getLogManager()
-                .deleteLogger(LoggerFactory.getLogger(shortName));});
+                .removeLogger(LoggerFactory.getLogger(shortName));});
     }
 
     @Test
@@ -132,11 +133,11 @@ public class TestLoggerFactory {
         String shortName = "log" +random.nextLong(10000, 10000000);
         assertDoesNotThrow(()->{LoggerFactory.createLogger(dirPath.toString(), shortName);});
         Assertions.assertTrue(Files.exists(dirPath));
-        Path filePath = Paths.get(dirPath.toString(), shortName + date.toString() + ".log");
+        Path filePath = Paths.get(dirPath.toString(), shortName + date + ".log");
         Assertions.assertTrue(Files.exists(filePath));
         assertNotNull(LoggerFactory.getLogger(shortName));
         assertDoesNotThrow(()->{LoggerFactory.getLogManager()
-                .deleteLogger(LoggerFactory.getLogger(shortName));});
+                .removeLogger(LoggerFactory.getLogger(shortName));});
     }
 
     @Test
@@ -144,11 +145,11 @@ public class TestLoggerFactory {
         String shortName = "log" +random.nextLong(10000, 10000000);
         assertDoesNotThrow(()->{LoggerFactory.createLogger(dirPath.toString(), shortName);});
         Assertions.assertTrue(Files.exists(dirPath));
-        Path filePath = Paths.get(dirPath.toString(), shortName + date.toString() + ".log");
+        Path filePath = Paths.get(dirPath.toString(), shortName + date + ".log");
         Assertions.assertTrue(Files.exists(filePath));
-        assertNotNull(LoggerFactory.getLoggerByPath(dirPath.toString() + "/" + shortName + ".log"));
+        assertNotNull(LoggerFactory.getLoggerByPath(dirPath + "/" + shortName + ".log"));
         assertDoesNotThrow(()->{LoggerFactory.getLogManager()
-                .deleteLogger(LoggerFactory.getLoggerByPath(dirPath.toString() + "/" + shortName + ".log"));});
+                .removeLogger(LoggerFactory.getLoggerByPath(dirPath + "/" + shortName + ".log"));});
     }
 }
 

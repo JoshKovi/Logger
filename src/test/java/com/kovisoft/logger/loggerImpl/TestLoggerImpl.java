@@ -2,7 +2,6 @@ package com.kovisoft.logger.loggerImpl;
 
 import com.kovisoft.logger.config.LoggerConfig;
 import com.kovisoft.logger.exports.Logger;
-import com.kovisoft.logger.exports.LoggerFactory;
 import com.kovisoft.logger.exports.TestLoggerFactory;
 import org.junit.jupiter.api.*;
 
@@ -10,15 +9,12 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import static com.kovisoft.logger.loggerImpl.LoggerImpl.LINE_DELIMITER;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class TestLoggerImpl {
@@ -60,19 +56,23 @@ public class TestLoggerImpl {
         logged.add(LOG_HEADER);
     }
 
-    @AfterAll
-    public static void teardownEnvironment(){
+    @Test
+    @Order(11) // Not an after all because it has some useful tests, maybe split this out latter.
+    public void teardownEnvironment(){
         List<String> lines = List.of();
         try{
-            Thread.sleep(5000);  //Let the queue finish itself out.
-            Assertions.assertDoesNotThrow(logger::stopRunning);
+            boolean awaitCompleted = logger.stopRunning();
+            Assertions.assertTrue(awaitCompleted);
             lines = Files.readAllLines(logger.getFile().toPath());
-        } catch (IOException | InterruptedException e) {
+        } catch (Exception e) {
             System.out.println(e.getMessage());
             e.printStackTrace();
         }
         try{
-            TestLoggerFactory.deleteDirectory(Paths.get(userdir, outputDir));
+            //Only delete if assertion will pass later, makes debugging way easier.
+            if(lines.size() == logged.size()){
+                TestLoggerFactory.deleteDirectory(Paths.get(userdir, outputDir));
+            }
         } catch (IOException e) {
             System.out.println("Could not delete directory!");
         }
@@ -114,9 +114,7 @@ public class TestLoggerImpl {
     @Order(1)
     public void test_error(){
         String test = "Logging error with no Exception present";
-        Assertions.assertDoesNotThrow(()->{
-            logger.error(test);
-        });
+        Assertions.assertDoesNotThrow(()->logger.error(test));
         LocalDateTime timeStamp = LocalDateTime.now(ZoneId.of("America/New_York"));
         logged.add(String.format(LOG, timeStamp.toLocalTime(), timeStamp.toLocalDate(), "Error", test));
     }
@@ -126,9 +124,7 @@ public class TestLoggerImpl {
     public void test_error_e(){
         String test = "Logging error with Exception present";
         Exception e = new Exception("Here is an error Exception!");
-        Assertions.assertDoesNotThrow(()->{
-            logger.error(test, e);
-        });
+        Assertions.assertDoesNotThrow(()->logger.error(test, e));
         LocalDateTime timeStamp = LocalDateTime.now(ZoneId.of("America/New_York"));
         logged.add(String.format(EXCEPTION, timeStamp.toLocalTime(), timeStamp.toLocalDate(), "Error", test,
                 e.getMessage(), getStackTraceAsString(e)));
@@ -138,9 +134,7 @@ public class TestLoggerImpl {
     @Order(3)
     public void test_except(){
         String test = "Logging Exception with no Exception present";
-        Assertions.assertDoesNotThrow(()->{
-            logger.except(test);
-        });
+        Assertions.assertDoesNotThrow(()->logger.except(test));
         LocalDateTime timeStamp = LocalDateTime.now(ZoneId.of("America/New_York"));
         logged.add(String.format(LOG, timeStamp.toLocalTime(), timeStamp.toLocalDate(), "Exception", test));
     }
@@ -150,9 +144,7 @@ public class TestLoggerImpl {
     public void test_except_e(){
         String test = "Logging Exception with Exception present";
         Exception e = new Exception("Here is an Exception Exception!");
-        Assertions.assertDoesNotThrow(()->{
-            logger.except(test, e);
-        });
+        Assertions.assertDoesNotThrow(()->logger.except(test, e));
         LocalDateTime timeStamp = LocalDateTime.now(ZoneId.of("America/New_York"));
         logged.add(String.format(EXCEPTION, timeStamp.toLocalTime(), timeStamp.toLocalDate(), "Exception", test,
                 e.getMessage(), getStackTraceAsString(e)));
@@ -162,9 +154,7 @@ public class TestLoggerImpl {
     @Order(5)
     public void test_log(){
         String test = "Logging Log with no Exception present";
-        Assertions.assertDoesNotThrow(()->{
-            logger.log(test);
-        });
+        Assertions.assertDoesNotThrow(()->logger.log(test));
         LocalDateTime timeStamp = LocalDateTime.now(ZoneId.of("America/New_York"));
         logged.add(String.format(LOG, timeStamp.toLocalTime(), timeStamp.toLocalDate(), "Log", test));
     }
@@ -174,9 +164,7 @@ public class TestLoggerImpl {
     public void test_log_e(){
         String test = "Logging Log with Exception present";
         Exception e = new Exception("Here is a Log Exception!");
-        Assertions.assertDoesNotThrow(()->{
-            logger.log(test, e);
-        });
+        Assertions.assertDoesNotThrow(()->logger.log(test, e));
         LocalDateTime timeStamp = LocalDateTime.now(ZoneId.of("America/New_York"));
         logged.add(String.format(EXCEPTION, timeStamp.toLocalTime(), timeStamp.toLocalDate(), "Log", test,
                 e.getMessage(), getStackTraceAsString(e)));
@@ -186,9 +174,7 @@ public class TestLoggerImpl {
     @Order(7)
     public void test_info(){
         String test = "Logging Info with no Exception present";
-        Assertions.assertDoesNotThrow(()->{
-            logger.info(test);
-        });
+        Assertions.assertDoesNotThrow(()->logger.info(test));
         LocalDateTime timeStamp = LocalDateTime.now(ZoneId.of("America/New_York"));
         logged.add(String.format(LOG, timeStamp.toLocalTime(), timeStamp.toLocalDate(), "Info", test));
     }
@@ -198,9 +184,7 @@ public class TestLoggerImpl {
     public void test_info_e(){
         String test = "Logging Info with Exception present";
         Exception e = new Exception("Here is an Info Exception!");
-        Assertions.assertDoesNotThrow(()->{
-            logger.info(test, e);
-        });
+        Assertions.assertDoesNotThrow(()->logger.info(test, e));
         LocalDateTime timeStamp = LocalDateTime.now(ZoneId.of("America/New_York"));
         logged.add(String.format(EXCEPTION, timeStamp.toLocalTime(), timeStamp.toLocalDate(), "Info", test,
                 e.getMessage(), getStackTraceAsString(e)));
@@ -210,9 +194,7 @@ public class TestLoggerImpl {
     @Order(9)
     public void test_warn(){
         String test = "Logging Warn with no Exception present";
-        Assertions.assertDoesNotThrow(()->{
-            logger.warn(test);
-        });
+        Assertions.assertDoesNotThrow(()->logger.warn(test));
         LocalDateTime timeStamp = LocalDateTime.now(ZoneId.of("America/New_York"));
         logged.add(String.format(LOG, timeStamp.toLocalTime(), timeStamp.toLocalDate(), "Warn", test));
     }
@@ -222,9 +204,7 @@ public class TestLoggerImpl {
     public void test_warn_e(){
         String test = "Logging Warn with Exception present";
         Exception e = new Exception("Here is a Warn Exception!");
-        Assertions.assertDoesNotThrow(()->{
-            logger.warn(test, e);
-        });
+        Assertions.assertDoesNotThrow(()->logger.warn(test, e));
         LocalDateTime timeStamp = LocalDateTime.now(ZoneId.of("America/New_York"));
         logged.add(String.format(EXCEPTION, timeStamp.toLocalTime(), timeStamp.toLocalDate(), "Warn", test,
                 e.getMessage(), getStackTraceAsString(e)));

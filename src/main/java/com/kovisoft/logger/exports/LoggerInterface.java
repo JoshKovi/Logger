@@ -1,5 +1,6 @@
 package com.kovisoft.logger.exports;
 
+
 import java.io.File;
 
 public interface LoggerInterface {
@@ -17,7 +18,8 @@ public interface LoggerInterface {
     void log(String logMessage, Exception e);
     void info(String logMessage);
     void info(String logMessage, Exception e);
-    void stopRunning();
+    boolean safeToClose();
+    boolean stopRunning() throws Exception;
     boolean needNewLog();
     String getShortName();
     int getDaysToLog();
