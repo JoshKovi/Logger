@@ -5,29 +5,28 @@ import com.kovisoft.logger.exports.LogMethods;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Arrays;
-import java.util.concurrent.BlockingQueue;
 import java.util.stream.Collectors;
 
 import static com.kovisoft.logger.loggerImpl.LoggerImpl.*;
 abstract class LoggerMethods implements LogMethods {
 
-    protected BlockingQueue<String> queue;
 
-    LoggerMethods(BlockingQueue<String> queue){
-        this.queue = queue;
+    protected LoggerImpl logger;
+    LoggerMethods(LoggerImpl logger){
+        this.logger = logger;
     }
 
     public abstract void log(String logMessage);
     public abstract void log(String logMessage, Exception e);
     protected void log(String type, String logMessage){
         LocalDateTime timeStamp = LocalDateTime.now(ZoneId.of("America/New_York"));
-        queue.add(String.format(LOG, timeStamp.toLocalTime().toString(),
+        logger.addToQueue(String.format(LOG, timeStamp.toLocalTime().toString(),
                 timeStamp.toLocalDate().toString(), type, logMessage));
     }
 
     protected void log(String type, String logMessage, Exception e){
         LocalDateTime timeStamp = LocalDateTime.now(ZoneId.of("America/New_York"));
-        queue.add(String.format(EXCEPTION, timeStamp.toLocalTime().toString(),
+        logger.addToQueue(String.format(EXCEPTION, timeStamp.toLocalTime().toString(),
                 timeStamp.toLocalDate().toString(), type, logMessage, e.getMessage(),
                 getStackTraceAsString(e)));
     }

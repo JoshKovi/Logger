@@ -7,71 +7,65 @@ import java.io.*;
 import java.nio.file.Files;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.*;
 
-public class LoggerImpl extends Logger {
+public class LoggerImpl extends Logger implements AutoCloseable {
 
     public static final String COLUMN_DELIMITER = "\t;;\t";
     public static final String LINE_DELIMITER = "\t;;;\t";
 
     protected static final String LOG_HEADER = String.join(COLUMN_DELIMITER,
-            List.of("Time","Date","Type","Message","ExceptionMessage","StackTrace\n"));
+            List.of("Time","Date","Type","Message","ExceptionMessage","StackTrace"));
     protected static final String LOG = String.join(COLUMN_DELIMITER,
-            List.of("%s","%s","%s","%s"," "," %n"));
+            List.of("%s","%s","%s","%s","",""));
     protected static final String EXCEPTION = String.join(COLUMN_DELIMITER,
-            List.of("%s","%s","%s","%s","%s","%s%n"));
+            List.of("%s","%s","%s","%s","%s","%s"));
 
-    private final BlockingQueue<String> queue = new LinkedBlockingQueue<>();
+    protected final BlockingQueue<String> queue = new LinkedBlockingQueue<>();
 
     private final File logFile;
     private final LocalDate date;
     private final String shortName;
     private final int daysToLog;
 
-    private final Thread loggerThread;
-    private volatile boolean running = true;
+    private final ScheduledExecutorService loggerService;
+    private volatile boolean writingComplete = true;
+    private final BufferedWriter bw;
 
-    public LoggerImpl(LoggerConfig config) {
-        this.error = new Error(queue);
-        this.except = new Except(queue);
-        this.log = new Log(queue);
-        this.info = new Info(queue);
-        this.warn = new Warn(queue);
+    public LoggerImpl(LoggerConfig config) throws IOException {
         this.date = config.getDate();
         this.daysToLog = config.getDaysToLog();
         this.shortName = config.getShortName();
         logFile = config.getLogFile();
-        loggerThread = new Thread(() ->{
-            try{
-                while(running || !queue.isEmpty()){
-                    String message = queue.take();
-                    writeLog(message);
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                System.out.println("Logger thread interrupted. " + logFile.getName());
-            }
-        });
-        loggerThread.start();
+        bw = new BufferedWriter(new FileWriter(logFile, true));
+        if(isEmptyFile()){
+            bw.write(LOG_HEADER);
+            bw.newLine();
+        }
+        loggerService = Executors.newScheduledThreadPool(1);
+        loggerService.scheduleWithFixedDelay(this::writeLogs, 5, 5, TimeUnit.MILLISECONDS);
+        this.error = new Error(this);
+        this.except = new Except(this);
+        this.log = new Log(this);
+        this.info = new Info(this);
+        this.warn = new Warn(this);
     }
 
-    private void writeLog(String message){
-        try(BufferedWriter bw = new BufferedWriter(new FileWriter(logFile, true))){
-            if(isEmptyFile()){
-                bw.write(LOG_HEADER);
-            }
-            String outputMessage = message;
-            do{
-                bw.write(outputMessage);
-                if(!queue.isEmpty()){
-                    outputMessage = queue.take();
-                }
-            } while(!queue.isEmpty());
 
-        } catch (IOException | InterruptedException e) {
-            System.out.println("Failed to write to output!" + e.getMessage());
+    private void writeLogs(){
+        writingComplete = false;
+        while(!queue.isEmpty()){
+            try{
+                String message = queue.poll(1, TimeUnit.MILLISECONDS);
+                if(message != null) {
+                    bw.write(message);
+                    bw.newLine();
+                }
+            } catch (IOException | InterruptedException e) {
+                System.out.println("Failed to write to output!" + e.getMessage());
+            }
         }
+        writingComplete = true;
     }
 
     private boolean isEmptyFile() throws IOException {
@@ -79,10 +73,37 @@ public class LoggerImpl extends Logger {
     }
 
 
+    @Override
+    public boolean safeToClose(){
+        return queue.isEmpty() && writingComplete;
+    }
 
-    public void stopRunning(){
-        running = false;
-        loggerThread.interrupt();
+    @Override
+    public boolean stopRunning() throws Exception {
+        try {
+            while (!safeToClose()) {
+                Thread.onSpinWait();
+                writeLogs();
+            }
+            bw.flush();
+            loggerService.shutdown();
+            return loggerService.awaitTermination(5000, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.out.println("Thread interrupted during shutdown.");
+        } finally {
+            close();
+        }
+        return false;
+    }
+
+    protected void addToQueue(String logMessage){
+        try{
+            queue.put(logMessage);
+        } catch (InterruptedException e) {
+            System.out.println("Interrupt Exception when attempting to put log: " + logMessage);
+        }
+
     }
 
     @Override
@@ -165,9 +186,29 @@ public class LoggerImpl extends Logger {
         info.log(logMessage, e);
     }
 
+    @Override
+    public void close() throws Exception{
+        Exception lastException = null;
+        try{
+            loggerService.close();
+        } catch (Exception e){
+            System.out.println("Exception thrown while attempting to close service executor. " + e.getMessage());
+            lastException = e;
+        }
+        try{
+            bw.flush();
+            bw.close();
+        } catch (Exception e){
+            System.out.println("Exception thrown while attempting to close buffered writer. " + e.getMessage());
+            lastException = e;
+        }
+        writingComplete = false;
+        if(lastException != null) throw lastException;
+    }
+
     private static class Warn extends LoggerMethods{
         private static final String TYPE = "Warn";
-        Warn(BlockingQueue<String> queue) {super(queue);}
+        Warn(LoggerImpl logger) {super(logger);}
         @Override
         public void log(String logMessage) {
             this.log(TYPE, logMessage);
@@ -178,10 +219,9 @@ public class LoggerImpl extends Logger {
         }
     }
 
-
     private static class Error extends LoggerMethods{
         private static final String TYPE = "Error";
-        Error(BlockingQueue<String> queue) {super(queue);}
+        Error(LoggerImpl logger) {super(logger);}
         @Override
         public void log(String logMessage) {
             this.log(TYPE, logMessage);
@@ -194,7 +234,7 @@ public class LoggerImpl extends Logger {
 
     private static class Log extends LoggerMethods{
         private static final String TYPE = "Log";
-        Log(BlockingQueue<String> queue) {super(queue);}
+        Log(LoggerImpl logger) {super(logger);}
         @Override
         public void log(String logMessage) {
             this.log(TYPE, logMessage);
@@ -206,7 +246,7 @@ public class LoggerImpl extends Logger {
     }
     private static class Except extends LoggerMethods{
         private static final String TYPE = "Exception";
-        Except(BlockingQueue<String> queue) {super(queue);}
+        Except(LoggerImpl logger) {super(logger);}
         @Override
         public void log(String logMessage) {
             this.log(TYPE, logMessage);
@@ -218,7 +258,7 @@ public class LoggerImpl extends Logger {
     }
     private static class Info extends LoggerMethods{
         private static final String TYPE = "Info";
-        Info(BlockingQueue<String> queue) {super(queue);}
+        Info(LoggerImpl logger) {super(logger);}
         @Override
         public void log(String logMessage) {
             this.log(TYPE, logMessage);
