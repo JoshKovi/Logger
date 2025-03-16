@@ -61,10 +61,12 @@ public class LoggerImpl extends Logger implements AutoCloseable {
                     bw.write(message);
                     bw.newLine();
                 }
+                bw.flush();
             } catch (IOException | InterruptedException e) {
                 System.out.println("Failed to write to output!" + e.getMessage());
             }
         }
+
         writingComplete = true;
     }
 
